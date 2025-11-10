@@ -1,0 +1,78 @@
+return ("/search/" in url) or (re.search(r"/\w{3}(/|\?)", url) and not url.endswith(".html"))
+
+def fetch(url: str, timeout: int = 20) -> Optional[str]:
+    headers = {
+        "User-Agent": os.environ.get(
+            "SCRAPER_UA",
+            "Mozilla/5.0 (compatible; BitbashCraigslistScraper/1.0; +https://bitbash.dev)",
+        )
+    }
+    try:
+        resp = requests.get(url, headers=headers, timeout=timeout)
+        if resp.status_code != 200:
+            logger.warning("Non-200 for %s: %s", url, resp.status_code)
+            return None
+        return resp.text
+    except requests.RequestException as e:
+        logger.error("Request failed for %s: %s", url, e)
+        return None
+
+def process_url(url: str) -> List[Dict]:
+    """Return a list of normalized records for the given URL."""
+    html = fetch(url)
+    if not html:
+        return []
+    soup = BeautifulSoup(html, "lxml")
+
+    results: List[Dict] = []
+
+    if is_probably_list_page(url):
+        logger.debug("Treating as list page: %s", url)
+        items = parse_list_page(soup, source_url=url)
+        for item in items:
+            item["category"] = item.get("category") or detect_category_from_url(url)
+            results.append(normalize_record(item))
+    else:
+        logger.debug("Treating as post page: %s", url)
+        item = parse_post_page(soup, source_url=url)
+        item["category"] = item.get("category") or detect_category_from_url(url)
+        results.append(normalize_record(item))
+
+    return results
+
+def main():
+    ap = argparse.ArgumentParser(description="Craigslist Scraper Runner")
+    ap.add_argument("--input", default="data/inputs.sample.txt", help="Path to a newline-delimited list of URLs")
+    ap.add_argument("--out", default="data/sample.json", help="Path to output JSON file (array)")
+    args = ap.parse_args()
+
+    if not os.path.exists(args.input):
+        logger.error("Input file not found: %s", args.input)
+        sys.exit(2)
+
+    urls = load_inputs(args.input)
+    if not urls:
+        logger.error("No URLs to process in %s", args.input)
+        sys.exit(3)
+
+    logger.info("Processing %d URL(s)...", len(urls))
+    all_records: List[Dict] = []
+    for i, url in enumerate(urls, 1):
+        logger.info("[%d/%d] %s", i, len(urls), url)
+        try:
+            records = process_url(url)
+            logger.info("  -> %d record(s)", len(records))
+            all_records.extend(records)
+        except Exception as e:
+            logger.exception("Failed to process %s: %s", url, e)
+        # Be polite; Craigslist is sensitive to aggressive crawling.
+        time.sleep(float(os.environ.get("SCRAPER_DELAY_SEC", "1.0")))
+
+    if not all_records:
+        logger.warning("No records parsed. Nothing to write.")
+    else:
+        write_json_array(all_records, args.out)
+        logger.info("Wrote %d record(s) to %s", len(all_records), args.out)
+
+if __name__ == "__main__":
+    main()
