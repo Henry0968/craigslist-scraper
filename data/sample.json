@@ -1,0 +1,15 @@
+[
+    {
+        "id": "1234567890",
+        "url": "https://newyork.craigslist.org/job/1234567890",
+        "title": "Software Engineer",
+        "datetime": "2022-12-01T09:00:00-0500",
+        "location": "Manhattan",
+        "category": "jobs",
+        "price": "$120,000/year",
+        "post": "Looking for an experienced software engineer...",
+        "notices": ["do NOT contact me with unsolicited services or offers"],
+        "phoneNumbers": ["555-1234-5678"],
+        "pics": []
+    }
+]
