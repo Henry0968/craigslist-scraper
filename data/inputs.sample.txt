@@ -1,0 +1,6 @@
+# Sample input file for Craigslist Scraper
+# You can specify multiple categories and locations here for scraping
+
+jobs,newyork
+housing,sanfrancisco
+services,boston
