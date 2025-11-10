@@ -1,0 +1,6 @@
+{
+  "PROXY_CONFIG": {
+    "http": "http://proxy.example.com:8080",
+    "https": "https://proxy.example.com:8080"
+  }
+}
